@@ -11,3 +11,7 @@ categories = ["api-bindings", "games"]
 readme = "README.md"
 
 [dependencies]
+
+[[bin]]
+doc = false
+name = "etherealpost"
