@@ -2,8 +2,12 @@
 name = "etherealpost"
 version = "0.1.0"
 authors = ["Seputaes <seputaes@sep.gg>"]
+license = "MIT OR Apache-2.0"
+description = "Analyzes data from the World of Warcraft Auction House"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://github.com/seputaes/etherealpost"
+keywords = ["blizzard", "battlenet", "world-of-warcraft", "wow", "warcraft"]
+categories = ["api-bindings", "games"]
+readme = "README.md"
 
 [dependencies]
