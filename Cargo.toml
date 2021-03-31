@@ -12,6 +12,9 @@ readme = "README.md"
 
 [dependencies]
 
+[dev-dependencies]
+approx = "0.3.2"
+
 [[bin]]
 doc = false
 name = "etherealpost"
