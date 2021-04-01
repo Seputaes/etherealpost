@@ -78,7 +78,7 @@ pub fn market_price(prices: &[u64]) -> Option<u64> {
     let p_index = percentile_index(FIRST_STANDARD_DEV_PERCENTILE, prices.len() as usize);
 
     let mut v = prices.to_vec();
-    v.sort();
+    v.sort_unstable();
 
     let calc_prices = &v[0..=p_index];
     let sum: u64 = calc_prices.iter().sum();
@@ -139,7 +139,7 @@ pub fn mean(numbers: &[u64]) -> f64 {
 ///
 /// The numbers array is mutated by sorting it as part of the calculation.
 pub fn median(numbers: &mut [u64]) -> u64 {
-    numbers.sort();
+    numbers.sort_unstable();
     let mid = numbers.len() / 2;
     numbers[mid]
 }

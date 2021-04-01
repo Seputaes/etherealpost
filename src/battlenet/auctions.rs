@@ -117,9 +117,9 @@ impl Item {
         ) {
             (Some(breed), Some(level), Some(quality), Some(species)) => Some(AuctionPet {
                 breed,
-                level,
                 quality,
                 species,
+                level,
             }),
             _ => None,
         }
