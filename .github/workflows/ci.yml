@@ -1,0 +1,52 @@
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  stable-linux:
+    name: Rust stable (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+  nightly-linux:
+    name: Rust nightly (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+  linting:
+    name: rustfmt and Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+          override: true
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all -- -D clippy::all
+      - name: Check rustfmt
+        if: always()
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
