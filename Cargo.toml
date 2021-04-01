@@ -11,6 +11,8 @@ categories = ["api-bindings", "games"]
 readme = "README.md"
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [dev-dependencies]
 approx = "0.3.2"
