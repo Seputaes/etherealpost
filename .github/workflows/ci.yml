@@ -5,6 +5,7 @@ on:
     - cron: '0 2 * * *'
 
 jobs:
+
   stable-linux:
     name: Rust stable (Ubuntu)
     runs-on: ubuntu-latest
@@ -34,6 +35,19 @@ jobs:
   stable-macos:
     name: Rust stable (macOS)
     runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+  stable-windows:
+    name: Rust stable (Windows)
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
