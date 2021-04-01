@@ -17,6 +17,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+
   nightly-linux:
     name: Rust nightly (Ubuntu)
     runs-on: ubuntu-latest
@@ -29,6 +30,20 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+
+  stable-macos:
+    name: Rust stable (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+
   linting:
     name: rustfmt and Clippy
     runs-on: ubuntu-latest
