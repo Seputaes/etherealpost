@@ -27,6 +27,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "etherealpost_tools"
+version = "0.1.0"
+dependencies = [
+ "etherealpost",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

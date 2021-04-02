@@ -1,4 +1,5 @@
 [workspace]
 members = [
     "etherealpost",
+    "etherealpost_tools",
 ]

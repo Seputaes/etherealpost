@@ -1,0 +1,14 @@
+[package]
+name = "etherealpost_tools"
+version = "0.1.0"
+authors = ["Seputaes <seputaes@sep.gg>"]
+license = "MIT OR Apache-2.0"
+description = "Tools and utilities that support the main project or local development"
+repository = "https://github.com/seputaes/etherealpost"
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+etherealpost = { version = "*", path = "../etherealpost" }
