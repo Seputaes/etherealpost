@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::str::FromStr;
 
 /// A raw Auctions resource which is returned by Blizzard's
 /// Auction House API for single Connected Realm, and consisting of [`Auction`]s.
@@ -16,43 +17,44 @@ pub struct AuctionFile {
     pub auctions: Vec<Auction>,
 }
 
-impl AuctionFile {
+impl FromStr for AuctionFile {
+    type Err = serde_json::Error;
+
     /// Deserialize an instance of [`AuctionFile`] from a JSON string.
     ///
     /// # Example
     ///
     /// ```rust
+    /// use std::str::FromStr;
     /// use etherealpost::auctions::AuctionFile;
     ///
-    /// fn main() {
-    ///     let json = "
+    /// let json = "
+    ///   {
+    ///     \"auctions\": [
     ///       {
-    ///         \"auctions\": [
-    ///           {
-    ///             \"id\": 1234,
-    ///             \"quantity\": 1,
-    ///             \"item\": {
-    ///               \"id\": 72092
-    ///             },
-    ///             \"unit_price\": 164068,
-    ///             \"time_left\": \"MEDIUM\"
-    ///           }
-    ///         ]
-    ///       }";
-    ///     let auction_file = AuctionFile::from_str(json).unwrap();
-    ///     println!(
-    ///         "The unit price for auction {} is {}",
-    ///         auction_file.auctions[0].id,
-    ///         auction_file.auctions[0].unit_price.unwrap()
-    ///     );
-    /// }
+    ///         \"id\": 1234,
+    ///         \"quantity\": 1,
+    ///         \"item\": {
+    ///           \"id\": 72092
+    ///         },
+    ///         \"unit_price\": 164068,
+    ///         \"time_left\": \"MEDIUM\"
+    ///       }
+    ///     ]
+    ///   }";
+    /// let auction_file = AuctionFile::from_str(json).unwrap();
+    /// println!(
+    ///     "The unit price for auction {} is {}",
+    ///     auction_file.auctions[0].id,
+    ///     auction_file.auctions[0].unit_price.unwrap()
+    /// );
     /// ```
-    pub fn from_str(s: &str) -> Result<AuctionFile, serde_json::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
 }
 
-/// A single Auction that is currently on the Auction House.
+/// A single Auction     that is currently on the Auction House.
 ///
 /// There are three price fields that can be part of the Auction: `unit_price`, `buyout`, and `bid`.
 ///
