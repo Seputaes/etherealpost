@@ -16,6 +16,42 @@ pub struct AuctionFile {
     pub auctions: Vec<Auction>,
 }
 
+impl AuctionFile {
+    /// Deserialize an instance of [`AuctionFile`] from a JSON string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use etherealpost::auctions::AuctionFile;
+    ///
+    /// fn main() {
+    ///     let json = "
+    ///       {
+    ///         \"auctions\": [
+    ///           {
+    ///             \"id\": 1234,
+    ///             \"quantity\": 1,
+    ///             \"item\": {
+    ///               \"id\": 72092
+    ///             },
+    ///             \"unit_price\": 164068,
+    ///             \"time_left\": \"MEDIUM\"
+    ///           }
+    ///         ]
+    ///       }";
+    ///     let auction_file = AuctionFile::from_str(json).unwrap();
+    ///     println!(
+    ///         "The unit price for auction {} is {}",
+    ///         auction_file.auctions[0].id,
+    ///         auction_file.auctions[0].unit_price.unwrap()
+    ///     );
+    /// }
+    /// ```
+    pub fn from_str(s: &str) -> Result<AuctionFile, serde_json::Error> {
+        serde_json::from_str(s)
+    }
+}
+
 /// A single Auction that is currently on the Auction House.
 ///
 /// There are three price fields that can be part of the Auction: `unit_price`, `buyout`, and `bid`.
@@ -24,7 +60,8 @@ pub struct AuctionFile {
 ///
 /// 1. `unit_price` only
 /// 2. `buyout` only
-/// 3. `bid` and `buyout` only
+/// 3. `bid` only
+/// 4. `bid` and `buyout` only
 ///
 /// Otherwise, the fields not present will be `None`.
 ///
@@ -52,7 +89,8 @@ pub struct Auction {
 
     /// The current bid price for the auction.
     ///
-    /// If Bid is present, `unit_price` _will not_ be present and `buyout` _will_ be present.
+    /// If Bid is present, `unit_price` _will not_ be present and `buyout` _may or may not_
+    /// be present.
     pub bid: Option<u64>,
 
     /// The current time left for the auction. See [`TimeLeft`].
