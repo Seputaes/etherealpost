@@ -71,8 +71,10 @@ pub fn std_dev(numbers: &[u64], is_population: bool) -> Option<f64> {
 ///   will return `None` when `prices` contains fewer than 2 items.
 ///
 pub fn market_price(prices: &[u64]) -> Option<u64> {
-    if prices.len() < 2 {
+    if prices.is_empty() {
         return None;
+    } else if prices.len() == 1 {
+        return Some(prices[0]);
     }
 
     let p_index = percentile_index(FIRST_STANDARD_DEV_PERCENTILE, prices.len() as usize);
@@ -317,5 +319,17 @@ mod tests {
         ];
         let res = market_price(&arr).unwrap();
         assert_eq!(47500, res);
+    }
+
+    #[test]
+    fn market_price_empty_array() {
+        let res = market_price(&[]);
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn market_price_single_item() {
+        let res = market_price(&[5112]);
+        assert_eq!(5112, res.unwrap());
     }
 }
