@@ -35,13 +35,13 @@ pub struct ItemLevelCurve {
 }
 
 impl ItemLevelCurve {
-    /// Create a new Item Level curve from a vector of `(x, y)` coordinates.
+    /// Create a new Item Level curve from an array of `(x, y)` coordinates.
     /// These values will be cloned into the resulting struct. As such,
     /// they do not need to be mutable or previously sorted.
     ///
     /// The curve points can be found for a given _curve ID_ in the `CurvePoint`
     /// DB2 table in World of Warcraft.
-    pub fn from_points(points: &Vec<(u32, u32)>) -> ItemLevelCurve {
+    pub fn from_points(points: &[(u32, u32)]) -> ItemLevelCurve {
         let mut curve = ItemLevelCurve {
             points: points
                 .iter()
@@ -123,12 +123,13 @@ impl ItemLevelCurve {
     /// ```
     pub fn calc_ilvl(&self, looted_level: &u32) -> u32 {
         let looted_level = *looted_level as f64;
+        let error_margin = 0.01f64;
 
         let mut prev = &self.points[0];
 
         for point in &mut self.points.iter() {
             // if the player level is the looted level, we don't need to interpolate
-            if looted_level == point.player_level {
+            if (looted_level - point.player_level).abs() < error_margin {
                 return point.item_level as u32;
             }
             // interpolate: y = y0 + (x - x0) * ( (y1 - y0) / (x1 - x0) )
