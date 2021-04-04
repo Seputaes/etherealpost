@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use std::str::FromStr;
 
 /// A raw Auctions resource which is returned by Blizzard's
 /// Auction House API for single Connected Realm, and consisting of [`Auction`]s.
@@ -17,9 +16,7 @@ pub struct AuctionFile {
     pub auctions: Vec<Auction>,
 }
 
-impl FromStr for AuctionFile {
-    type Err = serde_json::Error;
-
+impl AuctionFile {
     /// Deserialize an instance of [`AuctionFile`] from a JSON string.
     ///
     /// # Example
@@ -42,14 +39,14 @@ impl FromStr for AuctionFile {
     ///       }
     ///     ]
     ///   }";
-    /// let auction_file = AuctionFile::from_str(json).unwrap();
+    /// let auction_file = AuctionFile::from_json(json).unwrap();
     /// println!(
     ///     "The unit price for auction {} is {}",
     ///     auction_file.auctions[0].id,
     ///     auction_file.auctions[0].unit_price.unwrap()
     /// );
     /// ```
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    pub fn from_json(s: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(s)
     }
 }
