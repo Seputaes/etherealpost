@@ -128,6 +128,9 @@ pub struct Item {
     /// Like `bonus_lists`, Blizzard doesn't provide an API to explain this one. It can
     /// indicate many number of things. For example, a type of `9` indicates the player's
     /// level when the item dropped for them.
+    ///
+    /// The player's level (type `9`) is frequently used when calculating
+    /// the effective item level based on a an [ItemLevelCurve](`crate::stats::ItemLevelCurve`).
     pub modifiers: Option<Vec<ItemModifier>>,
 
     /// If this item is a Pet or Pet Cage, this is the Pet's Breed ID.
