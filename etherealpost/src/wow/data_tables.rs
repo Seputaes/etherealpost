@@ -1,8 +1,99 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// Container struct for all of the [`DB2CurvePoints`] rows.
+pub struct Db2CurvePoints {
+    // TODO(seputaes) Do we need to keep this data in memory?
+    // points: Vec<DB2CurvePoint>,
+    /// Mapping of Curve IDs to all of the curve `(x, y)` values.
+    curve_ids: HashMap<u32, Vec<(f64, f64)>>,
+}
+
+/// A struct representation of a single row in the CurvePoint DB2 table
+/// of World of Warcraft game files.
+#[derive(Debug, Deserialize)]
+pub struct Db2CurvePoint {
+    /// The ID of a single Curve Point `(x, y)` coordinate.
+    #[serde(rename = "ID")]
+    pub id: u32,
+
+    /// The `x` coordinate, which corresponds to Player Level
+    #[serde(rename = "Pos[0]")]
+    pub x: f64,
+
+    /// The `y` coordinate, which corresponds to Item Level
+    #[serde(rename = "Pos[1]")]
+    pub y: f64,
+
+    /// The `x` coordinate prior to the Patch 9.0 Item Level squish.
+    #[serde(rename = "PosPreSquish[0]")]
+    pub x_pre_squish: f64,
+
+    /// The `y` coordinate prior to the Patch 9.0 Item Level squish.
+    #[serde(rename = "PosPreSquish[1]")]
+    pub y_pre_squish: f64,
+
+    /// The ID of the overall curve, which is made up of one or more
+    /// curve points. This ID is tied to Bonus IDs via the
+    /// [`DB2BItemBonuses`] table.
+    #[serde(rename = "CurveID")]
+    pub curve_id: u32,
+
+    /// The order index within the table if between "like" items.
+    /// Typically unused in the context of Ethereal Post.
+    #[serde(rename = "OrderIndex")]
+    pub order_index: u16,
+}
+
+/// Functionality for working with Curve Points and their effect on items.
+///
+/// In addition to mapping the rows into a [`DB2CurvePoint`],
+/// parsing is done which maps all Curve IDs to all `(x, y)` coordinates
+/// associated with that ID for fast retrieval.
+impl Db2CurvePoints {
+    /// Deserializes a CSV string which represents the DB2 CurvePoints table
+    /// in World of Warcraft.
+    pub fn from_csv(csv: &str) -> Db2CurvePoints {
+        let mut reader = csv::Reader::from_reader(csv.as_bytes());
+        let iter = reader.deserialize::<Db2CurvePoint>();
+
+        let mut points = Vec::new();
+
+        // TODO(seputaes): Some rows contain floats for their `x` and `y` coordinates
+        // I have no idea if they're ever used for our context, but for now
+        // we're just casting them into u32 which is _not_ safe.
+        let mut curve_ids: HashMap<u32, Vec<(f64, f64)>> = HashMap::new();
+
+        for point in iter {
+            if point.is_err() {
+                continue;
+            }
+            let point = point.unwrap();
+
+            curve_ids
+                .entry(point.curve_id)
+                .or_insert_with(Vec::new)
+                .push((point.x, point.y));
+
+            points.push(point);
+        }
+
+        Db2CurvePoints {
+            // TODO(seputaes) Do we need to keep this data in memory?
+            // points,
+            curve_ids,
+        }
+    }
+
+    /// Find the curve `(x, y)` coordinates associated with a Curve ID,
+    /// if it exists.
+    pub fn curve(&self, curve_id: &u32) -> Option<&Vec<(f64, f64)>> {
+        self.curve_ids.get(curve_id)
+    }
+}
+
 /// Container struct for all of the [`DB2ItemBonus`] rows.
-pub struct DB2ItemBonuses {
+pub struct Db2ItemBonuses {
     // TODO(seputaes) Do we need to keep this data in memory?
     // bonuses: Vec<DB2ItemBonus>,
 
@@ -16,7 +107,7 @@ pub struct DB2ItemBonuses {
 /// A struct representation of a single row in the ItemBonus DB2 table of
 /// World of Warcraft game files.
 #[derive(Debug, Deserialize)]
-pub struct DB2ItemBonus {
+pub struct Db2ItemBonus {
     /// The ID of the Item Bonus
     #[serde(rename = "ID")]
     pub id: u32,
@@ -119,12 +210,12 @@ pub struct DB2ItemBonus {
 /// `6908` maps to a curve ID, and `1520` maps to a level adjustment.
 /// Because there is _exactly 1_ curve tied to this item, the first rule above applies
 /// and the curve ID associated with bonus ID `6908` is to be used.
-impl DB2ItemBonuses {
+impl Db2ItemBonuses {
     /// Deserializes a CSV string which represents the DB2 ItemBonus table
     /// in World of Warcraft.
-    pub fn from_csv(csv: &str) -> DB2ItemBonuses {
+    pub fn from_csv(csv: &str) -> Db2ItemBonuses {
         let mut reader = csv::Reader::from_reader(csv.as_bytes());
-        let iter = reader.deserialize::<DB2ItemBonus>();
+        let iter = reader.deserialize::<Db2ItemBonus>();
 
         let mut bonuses = Vec::new();
         let mut curve_ids: HashMap<u32, u32> = HashMap::new();
@@ -151,7 +242,7 @@ impl DB2ItemBonuses {
             bonuses.push(bonus);
         }
 
-        DB2ItemBonuses {
+        Db2ItemBonuses {
             // TODO(seputaes) Do we need to keep this data in memory? // bonuses,
             curve_ids,
             ilvl_adjustments,
@@ -238,60 +329,100 @@ impl DB2ItemBonuses {
 mod tests {
     use super::*;
 
-    const CSV_HEADER: &str =
+    const CURVE_CSV_HEADER: &str =
+        "ID,Pos[0],Pos[1],PosPreSquish[0],PosPreSquish[1],CurveID,OrderIndex";
+    const ITEM_BONUSES_CSV_HEADER: &str =
         "ID,Value[0],Value[1],Value[2],Value[3],ParentItemBonusListID,Type,OrderIndex";
 
     #[test]
+    fn curve_single_curve() {
+        let mut csv = String::from(CURVE_CSV_HEADER);
+        csv.push_str("\n5,1,6,0,1,5,0");
+
+        let table = Db2CurvePoints::from_csv(&csv);
+        assert_eq!(vec![(1.0f64, 6.0f64)], *table.curve(&5).unwrap());
+    }
+
+    #[test]
+    fn curve_multiple_curves() {
+        let mut csv = String::from(CURVE_CSV_HEADER);
+        csv.push_str("\n5,1,6,0,1,5,0\n9,25,31,0,1,5,0");
+
+        let table = Db2CurvePoints::from_csv(&csv);
+        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.curve(&5).unwrap());
+    }
+
+    #[test]
+    fn curve_mixed_curves() {
+        let mut csv = String::from(CURVE_CSV_HEADER);
+        csv.push_str("\n5,1,6,0,1,5,0\n2,3,4,0,1,9,0\n9,25,31,0,1,5,0");
+
+        let table = Db2CurvePoints::from_csv(&csv);
+        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.curve(&5).unwrap());
+    }
+
+    #[test]
+    fn curve_no_curve_with_id() {
+        let mut csv = String::from(CURVE_CSV_HEADER);
+        csv.push_str("\n5,1,6,0,1,5,0\n2,3,4,0,1,9,0\n9,25,31,0,1,5,0");
+
+        let table = Db2CurvePoints::from_csv(&csv);
+        assert!(table.curve(&12).is_none());
+    }
+
+    /////////
+
+    #[test]
     fn resolve_ilvl_adjustment_single_adjustment() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,-2,0,0,0,58,1,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(-2, table.resolve_ilvl_adjustment(&[58]).unwrap());
     }
 
     #[test]
     fn resolve_ilvl_adjustment_multiple_adjustments() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,-2,0,0,0,58,1,0\n9,40,0,0,0,72,1,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(38, table.resolve_ilvl_adjustment(&[58, 72]).unwrap());
     }
 
     #[test]
     fn resolve_ilvl_adjustment_multiple_adjustments_mixed_types() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,-2,0,0,0,58,1,0\n9,40,0,0,0,72,1,0\n3,0,0,0,1222,72,11,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(38, table.resolve_ilvl_adjustment(&[58, 72]).unwrap());
     }
 
     #[test]
     fn resolve_curve_id_single_curve() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,0,0,0,19932,58,11,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(19932, table.resolve_curve_id(&[58, 72]).unwrap());
     }
 
     #[test]
     fn resolve_curve_id_multiple_curves() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,0,0,0,19932,58,11,0\n9,0,0,0,17322,72,11,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(19932, table.resolve_curve_id(&[58, 72]).unwrap());
     }
 
     #[test]
     fn resolve_curve_id_fixed_type() {
-        let mut csv = String::from(CSV_HEADER);
+        let mut csv = String::from(ITEM_BONUSES_CSV_HEADER);
         csv.push_str("\n5,0,0,0,17322,58,13,0\n9,0,0,0,19932,72,13,0");
 
-        let table = DB2ItemBonuses::from_csv(&csv);
+        let table = Db2ItemBonuses::from_csv(&csv);
         assert_eq!(19932, table.resolve_curve_id(&[58, 72]).unwrap());
     }
 }
