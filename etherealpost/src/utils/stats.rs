@@ -41,13 +41,13 @@ impl ItemLevelCurve {
     ///
     /// The curve points can be found for a given _curve ID_ in the `CurvePoint`
     /// DB2 table in World of Warcraft.
-    pub fn from_points(points: &[(u32, u32)]) -> ItemLevelCurve {
+    pub fn from_points(points: &[(f64, f64)]) -> ItemLevelCurve {
         let mut curve = ItemLevelCurve {
             points: points
                 .iter()
                 .map(|(x, y)| CurvePoint {
-                    player_level: *x as f64,
-                    item_level: *y as f64,
+                    player_level: *x,
+                    item_level: *y,
                 })
                 .collect(),
         };
@@ -108,11 +108,11 @@ impl ItemLevelCurve {
     /// ```rust
     /// use etherealpost::stats::ItemLevelCurve;
     ///
-    /// let curve_points: Vec<(u32, u32)> = vec![
-    ///     (1, 6), (25, 31), (26, 32), (27, 33), (28, 34),
-    ///     (31, 38), (32, 39), (39, 46), (40, 47), (42, 50),
-    ///     (43, 50), (44, 50), (45, 50), (46, 51), (49, 57),
-    ///     (50, 57), (51, 98), (59, 146), (60, 146)
+    /// let curve_points: Vec<(f64, f64)> = vec![
+    ///     (1.0, 6.0), (25.0, 31.0), (26.0, 32.0), (27.0, 33.0), (28.0, 34.0),
+    ///     (31.0, 38.0), (32.0, 39.0), (39.0, 46.0), (40.0, 47.0), (42.0, 50.0),
+    ///     (43.0, 50.0), (44.0, 50.0), (45.0, 50.0), (46.0, 51.0), (49.0, 57.0),
+    ///     (50.0, 57.0), (51.0, 98.0), (59.0, 146.0), (60.0, 146.0)
     ///  ];
     ///
     /// let ilvl_curve = ItemLevelCurve::from_points(&curve_points);
@@ -605,14 +605,15 @@ mod tests {
 
     #[test]
     fn calc_ilvl_looted_level_in_curve() {
-        let curve_points: Vec<(u32, u32)> = vec![(1, 6), (25, 31), (26, 32), (27, 33)];
+        let curve_points: Vec<(f64, f64)> =
+            vec![(1.0, 6.0), (25.0, 31.0), (26.0, 32.0), (27.0, 33.0)];
         let curve = ItemLevelCurve::from_points(&curve_points);
         assert_eq!(32, curve.calc_ilvl(&26));
     }
 
     #[test]
     fn calc_ilvl_curve_with_zero_level() {
-        let curve_points: Vec<(u32, u32)> = vec![(0, 99)]; // Curve ID 19995
+        let curve_points: Vec<(f64, f64)> = vec![(0.0, 99.0)]; // Curve ID 19995
         let curve = ItemLevelCurve::from_points(&curve_points);
         assert_eq!(99, curve.calc_ilvl(&1));
         assert_eq!(99, curve.calc_ilvl(&25));
@@ -622,14 +623,16 @@ mod tests {
 
     #[test]
     fn calc_ilvl_curve_looted_level_gt_max_curve() {
-        let curve_points: Vec<(u32, u32)> = vec![(1, 6), (25, 31), (26, 32), (27, 33)];
+        let curve_points: Vec<(f64, f64)> =
+            vec![(1.0, 6.0), (25.0, 31.0), (26.0, 32.0), (27.0, 33.0)];
         let curve = ItemLevelCurve::from_points(&curve_points);
         assert_eq!(33, curve.calc_ilvl(&60));
     }
 
     #[test]
     fn calc_ilvl_curve_looted_level_lt_one_curve() {
-        let curve_points: Vec<(u32, u32)> = vec![(1, 6), (25, 31), (26, 32), (27, 33)];
+        let curve_points: Vec<(f64, f64)> =
+            vec![(1.0, 6.0), (25.0, 31.0), (26.0, 32.0), (27.0, 33.0)];
         let curve = ItemLevelCurve::from_points(&curve_points);
         assert_eq!(12, curve.calc_ilvl(&7));
     }

@@ -87,7 +87,7 @@ impl Db2CurvePoints {
 
     /// Find the curve `(x, y)` coordinates associated with a Curve ID,
     /// if it exists.
-    pub fn curve(&self, curve_id: &u32) -> Option<&Vec<(f64, f64)>> {
+    pub fn points(&self, curve_id: &u32) -> Option<&Vec<(f64, f64)>> {
         self.curve_ids.get(curve_id)
     }
 }
@@ -340,7 +340,7 @@ mod tests {
         csv.push_str("\n5,1,6,0,1,5,0");
 
         let table = Db2CurvePoints::from_csv(&csv);
-        assert_eq!(vec![(1.0f64, 6.0f64)], *table.curve(&5).unwrap());
+        assert_eq!(vec![(1.0f64, 6.0f64)], *table.points(&5).unwrap());
     }
 
     #[test]
@@ -349,7 +349,7 @@ mod tests {
         csv.push_str("\n5,1,6,0,1,5,0\n9,25,31,0,1,5,0");
 
         let table = Db2CurvePoints::from_csv(&csv);
-        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.curve(&5).unwrap());
+        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.points(&5).unwrap());
     }
 
     #[test]
@@ -358,7 +358,7 @@ mod tests {
         csv.push_str("\n5,1,6,0,1,5,0\n2,3,4,0,1,9,0\n9,25,31,0,1,5,0");
 
         let table = Db2CurvePoints::from_csv(&csv);
-        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.curve(&5).unwrap());
+        assert_eq!(vec![(1.0, 6.0), (25.0, 31.0)], *table.points(&5).unwrap());
     }
 
     #[test]
@@ -367,10 +367,8 @@ mod tests {
         csv.push_str("\n5,1,6,0,1,5,0\n2,3,4,0,1,9,0\n9,25,31,0,1,5,0");
 
         let table = Db2CurvePoints::from_csv(&csv);
-        assert!(table.curve(&12).is_none());
+        assert!(table.points(&12).is_none());
     }
-
-    /////////
 
     #[test]
     fn resolve_ilvl_adjustment_single_adjustment() {
