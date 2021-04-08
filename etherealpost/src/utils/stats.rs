@@ -1,3 +1,5 @@
+use crate::wow::data_tables::Db2CurvePoints;
+
 /// 15.87 represents -1 standard deviation from the mean of a normal distribution curve
 const MINIMUM_PRICES_PERCENTILE: f64 = 15.0;
 const FIRST_STANDARD_DEV_PERCENTILE: f64 = 15.87;
@@ -55,6 +57,18 @@ impl ItemLevelCurve {
             .points
             .sort_by(|a, b| a.player_level.partial_cmp(&b.player_level).unwrap());
         curve
+    }
+
+    /// Create a new Item Level Curve for a `curve_id`.
+    ///
+    /// The curve will be looked up in the provided
+    /// [Db2CurvePoints](`crate::wow::data_tables::Db2CurvePoints`) table
+    /// and those curve points used, if they exist.
+    ///
+    pub fn from_table(curve_id: &u32, table: &Db2CurvePoints) -> Option<ItemLevelCurve> {
+        table
+            .points(&curve_id)
+            .map(|curve_points| ItemLevelCurve::from_points(&curve_points))
     }
 
     /// Using the item level curve points, calculates the effective item level
