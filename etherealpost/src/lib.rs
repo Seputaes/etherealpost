@@ -1,4 +1,5 @@
 pub mod battlenet;
+pub mod parse;
 pub mod utils;
 pub mod wow;
 
