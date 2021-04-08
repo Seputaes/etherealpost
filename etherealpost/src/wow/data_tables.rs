@@ -1,7 +1,85 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
-/// Container struct for all of the [`DB2CurvePoints`] rows.
+/// Container struct for all of the [`Db2BattlePetSpecies`] rows.
+pub struct Db2BattlePetSpeciesTable {
+    // TODO(seputaes) Do we need to keep this data in memory?
+    // species: HashMap<u32, Db2BattlePetSpecies>,
+    spell_to_species: HashMap<u32, u32>,
+}
+
+/// A struct representation of a single row in the BattlePetSpecies DB2 table
+/// of World of Warcraft game files.
+///
+/// This table contains a significant amount of extra data than the fields on this struct,
+/// but they're ignored here since those field's aren't used ... yet.
+#[derive(Debug, Deserialize)]
+pub struct Db2BattlePetSpecies {
+    // The unique ID of the Battle Pet Species.
+    #[serde(rename = "ID")]
+    pub id: u32,
+
+    // The spell that is used to summon the pet.
+    // This can be used to reverse-lookup an
+    // item on the AH that is a pet but isn't in a pet cage (82800)
+    // in order to find its species
+    #[serde(rename = "SummonSpellID")]
+    pub summon_spell_id: u32,
+}
+
+/// Functionality for working with Battle Pet Species and their effect on items.
+///
+/// In addition to mapping the rows into a [`Db2BattlePetSpecies`],
+/// parsing is done which maps all Summon Spell IDs to its associated Species ID
+impl Db2BattlePetSpeciesTable {
+    pub fn from_csv(csv: &str) -> Db2BattlePetSpeciesTable {
+        let mut reader = csv::Reader::from_reader(csv.as_bytes());
+        let iter = reader.deserialize::<Db2BattlePetSpecies>();
+
+        let mut spell_to_species = HashMap::new();
+
+        for row in iter {
+            // TODO(seputaes): Logging for the error
+            if row.is_err() {
+                continue;
+            }
+
+            let row = row.unwrap();
+
+            // If the summon spell ID is 0, the current theory is that it
+            // is not able to be in a pet cage, and thus can't be sold on the AH
+            // TODO(seputaes): Maybe have some logging around this to confirm this theory
+            //                 using real AH data.
+            if row.summon_spell_id == 0 {
+                continue;
+            }
+
+            if spell_to_species.contains_key(&row.summon_spell_id) {
+                // from testing, it looks like if there's a duplicate
+                // spell ID, the first one in the table wins
+                // as of 9.0.5, duplicate spell IDs are:
+
+                // 15048
+                // 25162
+                // 53082
+                // 89472
+                // 132762
+                // 135259
+                // 138161
+                // 149810
+                // 170272
+                // 291537
+                continue;
+            }
+
+            spell_to_species.insert(row.summon_spell_id, row.id);
+        }
+
+        Db2BattlePetSpeciesTable { spell_to_species }
+    }
+}
+
+/// Container struct for all of the [`Db2CurvePoints`] rows.
 pub struct Db2CurvePoints {
     // TODO(seputaes) Do we need to keep this data in memory?
     // points: Vec<DB2CurvePoint>,
@@ -47,7 +125,7 @@ pub struct Db2CurvePoint {
 
 /// Functionality for working with Curve Points and their effect on items.
 ///
-/// In addition to mapping the rows into a [`DB2CurvePoint`],
+/// In addition to mapping the rows into a [`Db2CurvePoint`],
 /// parsing is done which maps all Curve IDs to all `(x, y)` coordinates
 /// associated with that ID for fast retrieval.
 impl Db2CurvePoints {
@@ -56,8 +134,6 @@ impl Db2CurvePoints {
     pub fn from_csv(csv: &str) -> Db2CurvePoints {
         let mut reader = csv::Reader::from_reader(csv.as_bytes());
         let iter = reader.deserialize::<Db2CurvePoint>();
-
-        let mut points = Vec::new();
 
         // TODO(seputaes): Some rows contain floats for their `x` and `y` coordinates
         // I have no idea if they're ever used for our context, but for now
@@ -74,8 +150,6 @@ impl Db2CurvePoints {
                 .entry(point.curve_id)
                 .or_insert_with(Vec::new)
                 .push((point.x, point.y));
-
-            points.push(point);
         }
 
         Db2CurvePoints {
@@ -92,7 +166,7 @@ impl Db2CurvePoints {
     }
 }
 
-/// Container struct for all of the [`DB2ItemBonus`] rows.
+/// Container struct for all of the [`Db2ItemBonus`] rows.
 pub struct Db2ItemBonuses {
     // TODO(seputaes) Do we need to keep this data in memory?
     // bonuses: Vec<DB2ItemBonus>,
@@ -130,7 +204,7 @@ pub struct Db2ItemBonus {
 
     /// The forth value associated with the item bonus. In the context of
     /// auctions, this will typically contain a Curve ID for the bonus
-    /// which can be further looked up in the [`DB2CurvePoint`] struct.
+    /// which can be further looked up in the [`Db2CurvePoint`] struct.
     #[serde(rename = "Value[3]")]
     pub value3: i32,
 
@@ -162,7 +236,7 @@ pub struct Db2ItemBonus {
 
 /// Functionality for working with item bonuses an their effect on items.
 ///
-/// In addition to mapping the rows into a [`DB2ItemBonus`],
+/// In addition to mapping the rows into a [`Db2ItemBonus`],
 /// parsing is done which maps all Bonus IDs (ParentItemLevelBonus)
 /// to their corresponding Curve ID and Item Level Adjustment values.
 ///
@@ -217,7 +291,6 @@ impl Db2ItemBonuses {
         let mut reader = csv::Reader::from_reader(csv.as_bytes());
         let iter = reader.deserialize::<Db2ItemBonus>();
 
-        let mut bonuses = Vec::new();
         let mut curve_ids: HashMap<u32, u32> = HashMap::new();
         let mut ilvl_adjustments: HashMap<u32, i32> = HashMap::new();
 
@@ -239,7 +312,6 @@ impl Db2ItemBonuses {
                 }
                 _ => {}
             }
-            bonuses.push(bonus);
         }
 
         Db2ItemBonuses {
@@ -329,10 +401,22 @@ impl Db2ItemBonuses {
 mod tests {
     use super::*;
 
+    const BATTLE_PET_SPECIES_CSV_HEADER: &str =
+        "Description_lang,SourceText_lang,ID,CreatureID,SummonSpellID,IconFileDataID,PetTypeEnum,Flags,SourceTypeEnum,CardUIModelSceneID,LoadoutUIModelSceneID,CovenantID";
     const CURVE_CSV_HEADER: &str =
         "ID,Pos[0],Pos[1],PosPreSquish[0],PosPreSquish[1],CurveID,OrderIndex";
     const ITEM_BONUSES_CSV_HEADER: &str =
         "ID,Value[0],Value[1],Value[2],Value[3],ParentItemBonusListID,Type,OrderIndex";
+
+    #[test]
+    fn battle_pet_species_uses_first_spell_id() {
+        let mut csv = String::from(BATTLE_PET_SPECIES_CSV_HEADER);
+        csv.push_str("\n\"Possibly explosive, definitely adorable. Keep away from open flame.\",|cFFFFD200Profession: |rEngineering,85,9656,15048,133712,9,2,3,6,7,0");
+        csv.push_str("\n\"The first bombling created in the Underhold, Siegecrafter Blackfuse couldn't bear to see it destroyed, and kept it as a friendly, if explosive, pet.\",|cFFFFD200Drop:|r Siegecrafter Blackfuse|n|cFFFFD200Raid:|r Siege of Orgrimmar,1322,73352,15048,897633,9,2,0,6,7,0");
+
+        let table = Db2BattlePetSpeciesTable::from_csv(&csv);
+        assert_eq!(85, *table.spell_to_species.get(&15048).unwrap());
+    }
 
     #[test]
     fn curve_single_curve() {
