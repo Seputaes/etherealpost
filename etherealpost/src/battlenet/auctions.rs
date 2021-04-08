@@ -134,7 +134,7 @@ pub struct Item {
     pub modifiers: Option<Vec<ItemModifier>>,
 
     /// If this item is a Pet or Pet Cage, this is the Pet's Breed ID.
-    pub pet_breed_id: Option<u64>,
+    pub pet_breed_id: Option<u32>,
 
     /// If this item is a Pet or Pet Cake, this is the Pet's level (0-25).
     pub pet_level: Option<u8>,
@@ -143,7 +143,7 @@ pub struct Item {
     pub pet_quality_id: Option<u16>,
 
     /// If this item is a Pet or a Pet Cage, this is the Pet's Species ID.
-    pub pet_species_id: Option<u64>,
+    pub pet_species_id: Option<u32>,
 }
 
 impl Item {
@@ -169,13 +169,13 @@ impl Item {
 /// Metadata about an [`Item`] which is a pet.
 pub struct AuctionPet {
     /// The breed ID of the pet.
-    pub breed: u64,
+    pub breed: u32,
 
     // The quality ID of the pet.
     pub quality: u16,
 
     /// The species ID of the pet.
-    pub species: u64,
+    pub species: u32,
 
     /// The pet level (1-25).
     pub level: u8,

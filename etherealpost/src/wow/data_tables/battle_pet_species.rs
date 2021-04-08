@@ -5,7 +5,7 @@ use std::collections::HashMap;
 pub struct Db2BattlePetSpeciesTable {
     // TODO(seputaes) Do we need to keep this data in memory?
     // species: HashMap<u32, Db2BattlePetSpecies>,
-    spell_to_species: HashMap<u32, u32>,
+    pub spell_to_species: HashMap<u32, u32>,
 }
 
 /// A struct representation of a single row in the BattlePetSpecies DB2 table
@@ -15,14 +15,14 @@ pub struct Db2BattlePetSpeciesTable {
 /// but they're ignored here since those field's aren't used ... yet.
 #[derive(Debug, Deserialize)]
 pub struct Db2BattlePetSpecies {
-    // The unique ID of the Battle Pet Species.
+    /// The unique ID of the Battle Pet Species.
     #[serde(rename = "ID")]
     pub id: u32,
 
-    // The spell that is used to summon the pet.
-    // This can be used to reverse-lookup an
-    // item on the AH that is a pet but isn't in a pet cage (82800)
-    // in order to find its species
+    /// The spell that is used to summon the pet.
+    /// This can be used to reverse-lookup an
+    /// item on the AH that is a pet but isn't in a pet cage (82800)
+    /// in order to find its species
     #[serde(rename = "SummonSpellID")]
     pub summon_spell_id: u32,
 }
@@ -32,6 +32,8 @@ pub struct Db2BattlePetSpecies {
 /// In addition to mapping the rows into a [`Db2BattlePetSpecies`],
 /// parsing is done which maps all Summon Spell IDs to its associated Species ID
 impl Db2BattlePetSpeciesTable {
+    /// Deserializes a CSV string which represents the DB2 BattlePetSpecies table
+    /// in World of Warcraft.
     pub fn from_csv(csv: &str) -> Db2BattlePetSpeciesTable {
         let mut reader = csv::Reader::from_reader(csv.as_bytes());
         let iter = reader.deserialize::<Db2BattlePetSpecies>();
