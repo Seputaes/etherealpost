@@ -1,11 +1,5 @@
 use crate::wow::data_tables::Db2CurvePoints;
-
-/// An individual curve point, which represents `(x, y)` coordinates on a graph,
-/// where `x` is player level and `y` is the effective level of the item.
-struct CurvePoint {
-    player_level: f64,
-    item_level: f64,
-}
+use std::collections::HashMap;
 
 /// Item Level Curve, which loosely corresponds to the
 /// `CurvePoint` DB2 table in World of Warcraft, can be used to determine
@@ -53,6 +47,17 @@ impl ItemLevelCurve {
             .points
             .sort_by(|a, b| a.player_level.partial_cmp(&b.player_level).unwrap());
         curve
+    }
+
+    /// Maps an the entire [Db2CurvePoints](`crate::wow::data_tables::Db2CurvePoints`) table
+    /// into a mapping of curve IDs to an [`ItemLevelCurve`] wrapping the
+    /// curve coordinates.
+    pub fn for_whole_table(table: &Db2CurvePoints) -> HashMap<u32, ItemLevelCurve> {
+        table
+            .curve_ids
+            .iter()
+            .map(|(curve_id, points)| (*curve_id, ItemLevelCurve::from_points(&points)))
+            .collect()
     }
 
     /// Create a new Item Level Curve for a `curve_id`.
@@ -155,6 +160,15 @@ impl ItemLevelCurve {
 
         prev.item_level as u32
     }
+}
+
+pub type ItemLevelCurvePoints = HashMap<u32, ItemLevelCurve>;
+
+/// An individual curve point, which represents `(x, y)` coordinates on a graph,
+/// where `x` is player level and `y` is the effective level of the item.
+struct CurvePoint {
+    player_level: f64,
+    item_level: f64,
 }
 
 #[cfg(test)]

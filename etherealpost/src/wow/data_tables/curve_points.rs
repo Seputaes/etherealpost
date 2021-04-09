@@ -6,7 +6,7 @@ pub struct Db2CurvePoints {
     // TODO(seputaes) Do we need to keep this data in memory?
     // points: Vec<DB2CurvePoint>,
     /// Mapping of Curve IDs to all of the curve `(x, y)` values.
-    curve_ids: HashMap<u32, Vec<(f64, f64)>>,
+    pub curve_ids: HashMap<u32, Vec<(f64, f64)>>,
 }
 
 /// A struct representation of a single row in the CurvePoint DB2 table
