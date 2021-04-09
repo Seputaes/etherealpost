@@ -35,7 +35,7 @@ pub struct Db2CurvePoint {
 
     /// The ID of the overall curve, which is made up of one or more
     /// curve points. This ID is tied to Bonus IDs via the
-    /// [`DB2BItemBonuses`] table.
+    /// [Db2ItemBonuses](`super::Db2ItemBonuses`) table.
     #[serde(rename = "CurveID")]
     pub curve_id: u32,
 

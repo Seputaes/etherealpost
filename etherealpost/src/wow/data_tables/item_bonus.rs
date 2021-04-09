@@ -39,7 +39,7 @@ pub struct Db2ItemBonus {
 
     /// The forth value associated with the item bonus. In the context of
     /// auctions, this will typically contain a Curve ID for the bonus
-    /// which can be further looked up in the [`Db2CurvePoint`] struct.
+    /// which can be further looked up in the [`super::Db2CurvePoint`] struct.
     #[serde(rename = "Value[3]")]
     pub value3: i32,
 
@@ -167,7 +167,7 @@ impl Db2ItemBonuses {
     /// Resolves the item level adjustment that should be applied to an
     /// item's base level based on its bonus IDs.
     ///
-    /// An [Item](`crate::battlenet:auctions::Item`) can have multiple
+    /// An [Item](`crate::battlenet::auctions::Item`) can have multiple
     /// bonus IDs on it which apply a level adjustment to the item's base
     /// item level. There can be more than one, in which case the sum
     /// of the adjustments is applied to the items' base level to
@@ -212,7 +212,7 @@ impl Db2ItemBonuses {
     /// # Arguments
     ///
     /// * `bonus_ids` - The bonus IDs present on the auction
-    ///   [Item](`crate::battlenet:auctions::Item`).
+    ///   [Item](`crate::battlenet::auctions::Item`).
     pub fn resolve_curve_id(&self, bonus_ids: &[u32]) -> Option<u32> {
         let mut highest = 0;
 

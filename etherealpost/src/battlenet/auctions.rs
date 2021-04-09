@@ -130,7 +130,7 @@ pub struct Item {
     /// level when the item dropped for them.
     ///
     /// The player's level (type `9`) is frequently used when calculating
-    /// the effective item level based on a an [ItemLevelCurve](`crate::stats::ItemLevelCurve`).
+    /// the effective item level based on a an [ItemLevelCurve](`crate::parse::ItemLevelCurve`).
     pub modifiers: Option<Vec<ItemModifier>>,
 
     /// If this item is a Pet or Pet Cage, this is the Pet's Breed ID.

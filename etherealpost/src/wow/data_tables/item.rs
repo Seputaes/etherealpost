@@ -14,8 +14,8 @@ pub struct Db2Items {
     ///
     /// In order to accurately determine items are actual pets, and more specifically,
     /// what is an _obtainable_ pet in the game, you need to cross reference these
-    /// items against both the [Db2ItemEffects](`crate::wow::data_tables::Db2ItemEffects`)
-    /// and [Db2BattlePetSpeciesTable](`crate::wow::data_tables:Db2BattlePetSpeciesTable`)
+    /// items against both the [Db2ItemEffects](`super::Db2ItemEffects`)
+    /// and [Db2BattlePetSpeciesTable](`super::Db2BattlePetSpeciesTable`)
     /// tables to determine what spell triggers the pet to be learned.
     pub pet_item_ids: Vec<u32>,
 }
