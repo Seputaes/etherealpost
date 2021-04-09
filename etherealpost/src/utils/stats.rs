@@ -258,6 +258,50 @@ pub fn std_dev(numbers: &[u64], is_population: bool) -> Option<f64> {
     }
 }
 
+/// Calculates the Standard Deviation of a array of `amount` values that appear
+/// in a series `quantity` times.
+///
+/// For example, an input of `[(5, 2), (4, 3), (5, 1)]` would effectively return the
+/// standard deviation of `[5, 5, 4, 4, 4, 5]`
+///
+/// # Arguments
+///
+/// - `amount_qty` - `(amount, quantity)` tuple pairs for an `amount` that appears
+///   `quantity` times in the series (cumulative).
+/// - `is_population` Whether the numbers represents the full population or a sample.
+///
+pub fn std_dev_amount_qty(amount_qty: &[(u64, u64)], is_population: bool) -> Option<f64> {
+    let mut amount_sum: u64 = 0;
+    let mut qty_sum: u64 = 0;
+    amount_qty.iter().for_each(|(amount, qty)| {
+        amount_sum += amount * qty;
+        qty_sum += qty;
+    });
+
+    if qty_sum < 2 {
+        return None;
+    }
+
+    let mean = amount_sum as f64 / qty_sum as f64;
+    let mut variance: f64 = 0.0;
+
+    let calc_len = if is_population {
+        qty_sum as f64
+    } else {
+        qty_sum as f64 - 1.0
+    };
+
+    for (amount, qty) in amount_qty {
+        let diff = (*amount as f64 - mean).powi(2);
+        let prob = *qty as f64 / calc_len;
+        let prod = diff * prob;
+
+        variance += prod;
+    }
+
+    Some(variance.sqrt())
+}
+
 /// Calculates the mean (average) for a given array of numbers or units.
 ///
 /// # Arguments
@@ -266,6 +310,25 @@ pub fn std_dev(numbers: &[u64], is_population: bool) -> Option<f64> {
 ///
 fn mean(numbers: &[u64]) -> f64 {
     numbers.iter().sum::<u64>() as f64 / numbers.len() as f64
+}
+
+/// Calculates the mean (average) amount for an array of `(amount, quantity)` tuple pairs.
+///
+/// For example, an input of `[(5, 2), (4, 3)]` would effectively return the mean of
+/// `[5, 5, 4, 4, 4]`.
+///
+/// # Arguments
+///
+/// * `amount_qty` - array of `(amount, quantity)` tuple pairs, for which the mean of the
+///   _amount_ value wil lbe used to calculate the average.
+fn mean_amount_qty(amount_qty: &[(u64, u64)]) -> f64 {
+    let mut amount_sum: u64 = 0;
+    let mut qty_sum: u64 = 0;
+    amount_qty.iter().for_each(|(amount, qty)| {
+        amount_sum += amount * qty;
+        qty_sum += qty;
+    });
+    amount_sum as f64 / qty_sum as f64
 }
 
 #[cfg(test)]
@@ -345,6 +408,16 @@ mod tests {
     }
 
     #[test]
+    fn mean_single_data_point() {
+        assert_eq!(5.0, mean_amount_qty(&[(5, 2)]));
+    }
+
+    #[test]
+    fn mean_multiple_data_points() {
+        assert_eq!(2.0, mean_amount_qty(&[(1, 4), (3, 2), (4, 1)]));
+    }
+
+    #[test]
     fn std_dev_population_odd_len() {
         assert_relative_eq!(
             0.81649658092,
@@ -410,6 +483,38 @@ mod tests {
 
         let res1 = std_dev(&mut arr1, false);
         assert!(res1.is_none());
+    }
+
+    #[test]
+    fn std_dev_amount_qty_population_large_arr() {
+        let mut arr: [(u64, u64); 8] = [
+            (9, 4),
+            (30, 3),
+            (51, 1),
+            (66, 1),
+            (139, 2),
+            (148, 4),
+            (181, 2),
+            (196, 1),
+        ];
+        let res = std_dev_amount_qty(&arr, true).unwrap();
+        assert_relative_eq!(68.739645684924, res, max_relative = MAX_RELATIVE_DIFF);
+    }
+
+    #[test]
+    fn std_dev_amount_qty_sample_large_arr() {
+        let mut arr: [(u64, u64); 8] = [
+            (9, 4),
+            (30, 3),
+            (51, 1),
+            (66, 1),
+            (139, 2),
+            (148, 4),
+            (181, 2),
+            (196, 1),
+        ];
+        let res = std_dev_amount_qty(&arr, false).unwrap();
+        assert_relative_eq!(70.732511868971, res, max_relative = MAX_RELATIVE_DIFF);
     }
 
     #[test]
