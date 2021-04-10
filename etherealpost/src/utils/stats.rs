@@ -1,6 +1,7 @@
 /// 15.87 represents -1 standard deviation from the mean of a normal distribution curve
 const MINIMUM_PRICES_PERCENTILE: f64 = 15.0;
 const FIRST_STANDARD_DEV_PERCENTILE: f64 = 15.87;
+const MAX_PRICE_DIFF_FACTOR: f64 = 1.2;
 
 /// Calculates the Market Price given an array of item buyout our unit prices.
 ///
@@ -97,6 +98,21 @@ pub fn market_price(prices: &[u64]) -> Option<u64> {
 /// This means that the final considered data must be within `{1.90836, 5.49164}`, inclusive.
 /// This leaves us with `[4, 5, 5, 5, 5, 5, 5]`. The final result is the mean, which is `4.86g`.
 ///
+/// # Example
+/// ```rust
+/// use etherealpost::stats::{normalized_market_price};
+///
+/// let mut data: [u64; 36] = [
+///     10000, 10000, 10000,
+///     40000,
+///     50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000,
+///     54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500, 54500,
+///     60000, 60000, 60000, 60000, 60000,
+///     150000, 150000
+/// ];
+/// assert_eq!(48571, normalized_market_price(&mut data).unwrap());
+/// ```
+///
 /// # Arguments
 ///
 /// * `prices` slice of item buyout or unit prices for which to calculate the market price.
@@ -130,7 +146,7 @@ pub fn normalized_market_price(prices: &mut [u64]) -> Option<u64> {
     if p1_index > p0_index {
         let mut last_num = prices[p0_index];
         for p in &prices[p0_index + 1..=p1_index] {
-            let max = (last_num as f64) * 1.2;
+            let max = (last_num as f64) * MAX_PRICE_DIFF_FACTOR;
             if (*p as f64) < max {
                 // also include this number
                 target_index += 1;
@@ -151,6 +167,202 @@ pub fn normalized_market_price(prices: &mut [u64]) -> Option<u64> {
     let filtered_prices = normalize_from_std_dev(calc_prices, 1.5);
 
     Some(mean(filtered_prices).round() as u64)
+}
+
+/// An alternate method of calculating market prices which normalizes prices and
+/// throws away significant outliers.
+///
+/// This method works the same way as [normalized_market_price](`self::normalized_market_price`),
+/// but operates on an array of `(price, quantity)` pairs.
+///
+/// This method is approximately 25% slower that the other method which operates
+/// on array of of prices, but overall gains significant performance when operating
+/// on the data as given by the Auction House API, since there's no need to
+/// perform large array/vec allocations in order to generate the full array
+/// of prices.
+///
+/// # Example
+///
+/// ```rust
+/// use etherealpost::stats::normalized_market_price_with_qty;
+///
+/// let mut data: [(u64, u64); 6] = [
+///     (10000, 3),
+///     (40000, 1),
+///     (50000, 10),
+///     (54500, 15),
+///     (60000, 5),
+///     (150000, 2)
+/// ];
+///
+/// assert_eq!(48571, normalized_market_price_with_qty(&mut data).unwrap());
+/// ```
+pub fn normalized_market_price_with_qty(price_qty: &mut [(u64, u64)]) -> Option<u64> {
+    let mut price_sum: u64 = 0;
+    let mut qty_sum: u64 = 0;
+    price_qty.iter().for_each(|(amount, qty)| {
+        price_sum += amount * qty;
+        qty_sum += qty;
+    });
+
+    if price_qty.is_empty() {
+        return None;
+    } else if qty_sum == 1 {
+        return Some(price_qty[0].0);
+    }
+
+    // sort by the price
+    price_qty.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    // calculate the theoretical index ranges if the prices
+    // were extrapolated into a full set
+    let p0_index = percentile_index(MINIMUM_PRICES_PERCENTILE, qty_sum as usize);
+    let p1_index = percentile_index(MINIMUM_PRICES_PERCENTILE * 2.0, qty_sum as usize);
+
+    // how many prices should there be for each of the 15% and 30% marks?
+    let p0_target = (p0_index + 1) as u64;
+    let p1_target = (p1_index + 1) as u64;
+
+    let mut added_qty: u64 = 0;
+    let mut iter_index: usize = 0;
+
+    let mut index_plus_qty: (usize, i64) = (0, 0);
+
+    let mut last_price: Option<u64> = None;
+
+    // keep iterating the list until it adds enough quantity to satisfy the p1 quantity
+    while added_qty < p1_target {
+        let (price, qty) = price_qty[iter_index];
+        let qty_if_added = added_qty + qty;
+
+        // no restrictions, add it verbatim
+        if qty_if_added <= p0_target {
+            added_qty += qty;
+            index_plus_qty.0 = iter_index;
+            index_plus_qty.1 = 0;
+            last_price = Some(price);
+        }
+        // have we gone into p1 territory?
+        else if added_qty > p0_target {
+            // everything from here on out can trigger a short circuit
+            let lp = last_price.unwrap();
+            let max = (lp as f64) * MAX_PRICE_DIFF_FACTOR;
+            if (price as f64) < max {
+                // can we add all of it?
+                if qty_if_added <= p1_target {
+                    added_qty += qty;
+                    index_plus_qty.0 = iter_index;
+                    index_plus_qty.1 = 0;
+                    last_price = Some(price);
+                } else {
+                    // partial up to p1
+                    let p1_missing = p1_target - added_qty;
+                    let p1_partial = -((qty - p1_missing) as i64);
+                    index_plus_qty.0 = iter_index;
+                    index_plus_qty.1 = p1_partial;
+                    break;
+                }
+            } else {
+                break; // the price is too damn high!
+            }
+        }
+        // haven't gotten to p1 territory yet
+        else {
+            // but wait, CAN we go into P1 territory?
+            if p1_target > p0_target {
+                // would the current item fit within the bounds of p1?
+                if qty_if_added <= p1_target {
+                    added_qty += qty;
+                    index_plus_qty.0 = iter_index;
+                    index_plus_qty.1 = 0;
+                    last_price = Some(price);
+                } else {
+                    // partial up to p1
+                    let p1_missing = p1_target - added_qty;
+                    let p1_partial = -((qty - p1_missing) as i64);
+                    index_plus_qty.0 = iter_index;
+                    index_plus_qty.1 = p1_partial;
+                    break;
+                }
+            } else {
+                // at the very least, we're going to do a partial on p0
+                // how much are we missing before p0?
+                let p0_missing = p0_target - added_qty;
+
+                // ok, let's add that as a partial
+                let p0_partial = -((qty - p0_missing) as i64);
+                added_qty += p0_missing;
+                index_plus_qty.0 = iter_index;
+                index_plus_qty.1 = p0_partial;
+                last_price = Some(price);
+            }
+        }
+
+        iter_index += 1;
+    }
+
+    let new_prices = &mut price_qty[0..=index_plus_qty.0].to_vec();
+
+    if index_plus_qty.1 < 0 {
+        new_prices.last_mut().unwrap().1 =
+            (price_qty[index_plus_qty.0].1 as i64 + index_plus_qty.1) as u64;
+    }
+
+    // sum up the newly included prices
+    let mut new_price_sum: u64 = 0;
+    let mut new_qty_sum: u64 = 0;
+    new_prices.iter().for_each(|(price, qty)| {
+        new_price_sum += price * qty;
+        new_qty_sum += qty;
+    });
+
+    // if there's fewer than 2, we can't take the standard deviation of it,
+    // so just return the only price
+    if new_qty_sum < 2 {
+        return Some(new_price_sum);
+    }
+
+    // filter out large deviations from the mean
+    let filtered_prices = normalize_from_std_dev_price_qty(new_prices, 1.5);
+
+    // return the average price of the result
+    Some(mean_amount_qty(filtered_prices).round() as u64)
+}
+
+/// Normalize an array of prices based on the standard deviation.
+///
+/// Works the same way as [normalize_from_std_dev](`self::normalize_from_std_dev`),
+/// but operates on an array of `(price, quantity)` pairs rather than a flat
+/// array of prices.
+///
+/// **IMPORTANT:** `price_qty` _must_ be sorted ascending.
+///
+/// # Arguments
+/// * `price_qty` - Array of `(price, quantity)` tuples for which to calculate the
+///   normalized distribution.
+/// * `std_devs` - The number of standard deviations from the mean to include in the
+///   normalization.
+fn normalize_from_std_dev_price_qty(price_qty: &[(u64, u64)], std_devs: f64) -> &[(u64, u64)] {
+    let mean = mean_amount_qty(price_qty);
+    let target = std_devs * std_dev_amount_qty(price_qty, true).unwrap().abs();
+    let range = (mean - target, mean + target);
+
+    let mut i0 = 0;
+    let mut i1 = price_qty.len() - 1;
+
+    for (i, (p, _)) in price_qty.iter().enumerate() {
+        let f = *p as f64;
+        if f < range.0 {
+            // advance the minimum index
+            i0 = i + 1;
+        } else if f > range.1 {
+            // the previous number is the target
+            // can break since the array is sorted
+            i1 = i - 1;
+            break;
+        }
+    }
+    &price_qty[i0..=i1]
 }
 
 /// Normalize an array of prices based on the standard deviation.
@@ -487,7 +699,7 @@ mod tests {
 
     #[test]
     fn std_dev_amount_qty_population_large_arr() {
-        let mut arr: [(u64, u64); 8] = [
+        let arr: [(u64, u64); 8] = [
             (9, 4),
             (30, 3),
             (51, 1),
@@ -503,7 +715,7 @@ mod tests {
 
     #[test]
     fn std_dev_amount_qty_sample_large_arr() {
-        let mut arr: [(u64, u64); 8] = [
+        let arr: [(u64, u64); 8] = [
             (9, 4),
             (30, 3),
             (51, 1),
@@ -552,14 +764,86 @@ mod tests {
     }
 
     #[test]
+    fn normalized_market_price_with_qty_large_array() {
+        let mut tup: [(u64, u64); 13] = [
+            (50000, 1),
+            (130000, 2),
+            (150000, 3),
+            (160000, 1),
+            (170000, 2),
+            (190000, 1),
+            (200000, 6),
+            (210000, 2),
+            (290000, 1),
+            (450000, 2),
+            (460000, 1),
+            (470000, 1),
+            (1000000, 1),
+        ];
+        let res = normalized_market_price_with_qty(&mut tup).unwrap();
+        assert_eq!(145000, res);
+    }
+
+    #[test]
+    fn normalized_market_price_with_qty_bounds_of_p0_p1() {
+        let mut data: [(u64, u64); 7] = [
+            (10000, 3),
+            (40000, 1),
+            (50000, 1),
+            (50000, 9),
+            (54500, 15),
+            (60000, 5),
+            (150000, 2),
+        ];
+        assert_eq!(48571, normalized_market_price_with_qty(&mut data).unwrap());
+    }
+
+    #[test]
+    fn normalized_market_price_with_qty_close_prices_large_qty_variance() {
+        let mut data1: [(u64, u64); 8] = [
+            (49900, 62),
+            (49900, 31),
+            (49900, 4),
+            (49900, 14),
+            (49900, 200),
+            (50000, 24),
+            (50000, 1),
+            (50000, 14),
+        ];
+        let mut data2: [(u64, u64); 4] =
+            [(1148600, 1), (1148600, 1), (1148600, 1), (4600000000, 1)];
+        let mut data3: [(u64, u64); 4] = [(4999700, 4), (4999700, 1), (4999700, 1), (4999800, 20)];
+        assert_eq!(49900, normalized_market_price_with_qty(&mut data1).unwrap());
+        assert_eq!(
+            1148600,
+            normalized_market_price_with_qty(&mut data2).unwrap()
+        );
+        assert_eq!(
+            4999700,
+            normalized_market_price_with_qty(&mut data3).unwrap()
+        );
+    }
+
+    #[test]
     fn normalized_market_price_empty_array() {
         let res = normalized_market_price(&mut []);
         assert!(res.is_none());
     }
 
     #[test]
+    fn normalized_market_price_with_qty_empty_array() {
+        let res = normalized_market_price_with_qty(&mut []);
+        assert!(res.is_none());
+    }
+
+    #[test]
     fn normalized_market_price_single_item() {
         let res = normalized_market_price(&mut [10000]).unwrap();
+        assert_eq!(10000, res);
+    }
+
+    fn normalized_market_price_with_qty_single_item() {
+        let res = normalized_market_price_with_qty(&mut [(10000, 1)]).unwrap();
         assert_eq!(10000, res);
     }
 }
