@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 2 * * *'
 
+name: CI
+
 jobs:
   test_and_check:
     name: Build and Test
