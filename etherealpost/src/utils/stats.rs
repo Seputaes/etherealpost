@@ -842,6 +842,7 @@ mod tests {
         assert_eq!(10000, res);
     }
 
+    #[test]
     fn normalized_market_price_with_qty_single_item() {
         let res = normalized_market_price_with_qty(&mut [(10000, 1)]).unwrap();
         assert_eq!(10000, res);
